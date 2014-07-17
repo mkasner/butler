@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	"go.aduro.hr/kmislav/alog"
+	"go.aduro.hr/alog"
 )
 
 var logger *alog.Logger
