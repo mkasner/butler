@@ -4,15 +4,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
-
-	"go.aduro.hr/alog"
 )
-
-var logger *alog.Logger
-
-func SetLogger(llogger *alog.Logger) {
-	logger = llogger
-}
 
 func UserHomeDir() string {
 	if runtime.GOOS == "windows" {

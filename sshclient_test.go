@@ -6,14 +6,22 @@ import (
 	"testing"
 )
 
-var localhost = &SSHClient{User: "mislav", Host: "localhost", Port: "22"}
+var localhost = &SSHClient{User: "vagrant", Host: "localhost", Port: "2200"}
 
 func TestListDirectory(t *testing.T) {
 	client := localhost
-	client.Connect()
+	if err := client.Connect(); err != nil {
+		t.Fatal(err)
+	}
+	commands := []string{"mkdir /vagrant/tmp/repos/dplr.git", "cd /vagrant/tmp/repos/dplr.git", "ls -al"}
 
-	fmt.Println(fmt.Sprintf("%s", client.command("mkdir /home/mislav/tmp/repos/dplr.git")))
-	fmt.Println(fmt.Sprintf("%s", client.command("cd /home/mislav/tmp/repos/dplr.git")))
-	fmt.Println(fmt.Sprintf("%s", client.command("ls -al")))
+	for _, c := range commands {
+		t.Log(c)
+		result, err := client.command(c)
+		if err != nil {
+			t.Error(err)
+		}
+		fmt.Println(fmt.Sprintf("%s", result))
+	}
 
 }

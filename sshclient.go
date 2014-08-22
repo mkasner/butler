@@ -4,6 +4,7 @@
 package butler
 
 import (
+	"errors"
 	"io/ioutil"
 
 	"strings"
@@ -23,7 +24,7 @@ type SSHClient struct {
 }
 
 //First function when creating a new client
-func (client *SSHClient) Connect() bool {
+func (client *SSHClient) Connect() error {
 	pkey := parsekey(UserHomeDir() + "/.ssh/id_rsa")
 
 	//
@@ -35,14 +36,15 @@ func (client *SSHClient) Connect() bool {
 	}
 	var err error
 	client.Client, err = ssh.Dial("tcp", client.Host+":"+client.Port, config)
-	if err != nil {
-		logger.Errorf("Failed to connect to %s", client.Host+":"+client.Port)
-		// panic("Failed to dial: " + err.Error())
-		return false
-	} else {
-		logger.Infof("Successful connection to %s", client.Host+":"+client.Port)
-		return true
-	}
+	return err
+	// if err != nil {
+	// 	logger.Errorf("Failed to connect to %s", client.Host+":"+client.Port)
+	// 	// panic("Failed to dial: " + err.Error())
+	// 	return false
+	// } else {
+	// 	logger.Infof("Successful connection to %s", client.Host+":"+client.Port)
+	// 	return true
+	// }
 }
 
 func parsekey(file string) ssh.Signer {
@@ -58,28 +60,64 @@ func parsekey(file string) ssh.Signer {
 	return private
 }
 
-func (client *SSHClient) command(s string) string {
+// func (client *SSHClient) command(s string) (string, error) {
+
+// 	session, err := client.Client.NewSession()
+// 	if err != nil {
+// 		return "", error
+// 	}
+// 	defer session.Close()
+
+// 	b, err := session.CombinedOutput(s)
+// 	if err != nil {
+// 		logger.Errorf("Failed to run: %v", err.Error())
+// 	}
+
+// 	return strip(string(b))
+// }
+
+func (client *SSHClient) command(s string) (string, error) {
 
 	session, err := client.Client.NewSession()
 	if err != nil {
-		logger.Errorf("Failed to create session: %v", err.Error())
+		return "", err
 	}
 	defer session.Close()
 
-	b, err := session.CombinedOutput(s)
+	stdout, err := session.StdoutPipe()
 	if err != nil {
-		logger.Errorf("Failed to run: %v", err.Error())
+		return "", err
+	}
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		return "", err
+	}
+	err = session.Start(s)
+	if err != nil {
+		return "", err
 	}
 
-	return strip(string(b))
+	if err := session.Wait(); err != nil {
+		var stderrBuf []byte
+		if _, err := stderr.Read(stderrBuf); err != nil {
+			return "", err
+		}
+		return "", errors.New(string(stderrBuf))
+	}
+	var stdoutBuf []byte
+	if _, err := stdout.Read(stdoutBuf); err != nil {
+		return "", err
+	}
+	return strip(string(stdoutBuf)), nil
 }
 
-func (client *SSHClient) Close() {
+func (client *SSHClient) Close() error {
 	if client.Client != nil {
-		if err := client.Client.Close(); err != nil {
-			logger.Error("Failed to close client: " + err.Error())
-		}
+		err := client.Client.Close()
+		return err
+
 	}
+	return nil
 }
 
 //Constructs full host name with user@host:port
