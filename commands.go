@@ -2,7 +2,7 @@
 package butler
 
 import (
-	"errors"
+	"bytes"
 	"os/exec"
 	"strings"
 )
@@ -10,68 +10,21 @@ import (
 //Execute locally
 func Local(command string, workingDir string, capture bool) (string, error) {
 	split := strings.Split(command, " ")
-	// fmt.Println(split)
+
 	cmd := exec.Command(split[0:1][0], split[1:]...)
 	cmd.Dir = workingDir
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-	err = cmd.Start()
-	if err != nil {
-		return "", err
-	}
-	if err := cmd.Wait(); err != nil {
-		var stderrBuf []byte
-		if _, err := stderr.Read(stderrBuf); err != nil {
-			return "", err
-		}
-		return "", errors.New(string(stderrBuf))
-	}
-	if capture == true {
-		var stdoutBuf []byte
-		if _, err := stdout.Read(stdoutBuf); err != nil {
-			return "", err
-		}
-		return strip(string(stdoutBuf)), nil
-	}
-	return "", nil
-}
+	var o, e bytes.Buffer
+	cmd.Stdout = &o
+	cmd.Stderr = &e
+	//if command exits with 0 no error is written
 
-// //Execute locally
-// func Local(command string, workingDir string, capture bool) (string, error) {
-// 	split := strings.Split(command, " ")
-// 	// fmt.Println(split)
-// 	cmd := exec.Command(split[0:1][0], split[1:]...)
-// 	cmd.Dir = workingDir
-// 	stdout, err := cmd.StdoutPipe()
-// 	if err != nil {
-// 		logger.Error(err.Error())
-// 	}
-// 	stderr, err := cmd.StderrPipe()
-// 	if err != nil {
-// 		logger.Error(err.Error())
-// 	}
-// 	if err := cmd.Wait(); err != nil {
-// 		var stderrBuf bytes.Buffer
-// 		if _, err := stderr.Read(stderrBuf); err != nil {
-// 			return "", err
-// 		}
-// 		return "", errors.New(stderrBuf.String())
-// 	}
-// 	if capture == true {
-// 		var stdoutBuf bytes.Buffer
-// 		if _, err := stdout.Read(stdoutBuf); err != nil {
-// 			return "", err
-// 		}
-// 		return strip(stdoutBuf.String()), nil
-// 	}
-// 	return "", nil
-// }
+	// if capture {
+	// 	return o.String(), nil
+	// }
+	err := cmd.Run()
+
+	return o.String(), err
+}
 
 //Execute remotely on hosts
 func Run(client *SSHClient, command string) (string, error) {

@@ -4,7 +4,10 @@
 package butler
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
 
 	"strings"
@@ -60,55 +63,36 @@ func parsekey(file string) ssh.Signer {
 	return private
 }
 
-// func (client *SSHClient) command(s string) (string, error) {
-
-// 	session, err := client.Client.NewSession()
-// 	if err != nil {
-// 		return "", error
-// 	}
-// 	defer session.Close()
-
-// 	b, err := session.CombinedOutput(s)
-// 	if err != nil {
-// 		logger.Errorf("Failed to run: %v", err.Error())
-// 	}
-
-// 	return strip(string(b))
-// }
-
 func (client *SSHClient) command(s string) (string, error) {
-
+	var err error
 	session, err := client.Client.NewSession()
 	if err != nil {
 		return "", err
 	}
 	defer session.Close()
+	var o, e bytes.Buffer
+	session.Stdout = &o
+	session.Stderr = &e
+	if err := session.Run(s); err != nil {
+		return o.String(), errors.New(e.String())
+	}
+	return o.String(), nil
 
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		return "", err
-	}
-	stderr, err := session.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-	err = session.Start(s)
-	if err != nil {
-		return "", err
-	}
+}
 
+func handleWait(session *ssh.Session, stderr io.Reader, errr error) {
 	if err := session.Wait(); err != nil {
-		var stderrBuf []byte
-		if _, err := stderr.Read(stderrBuf); err != nil {
-			return "", err
+		var stderrBuf bytes.Buffer
+		in := bufio.NewScanner(stderr)
+		for in.Scan() {
+			stderrBuf.Write(in.Bytes())
+			stderrBuf.Write([]byte("\n"))
 		}
-		return "", errors.New(string(stderrBuf))
+		errr = errors.New(strip(string(stderrBuf.String())))
+		// return "",
+
+		// return "", err
 	}
-	var stdoutBuf []byte
-	if _, err := stdout.Read(stdoutBuf); err != nil {
-		return "", err
-	}
-	return strip(string(stdoutBuf)), nil
 }
 
 func (client *SSHClient) Close() error {
