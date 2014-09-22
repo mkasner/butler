@@ -8,11 +8,12 @@ import (
 )
 
 //Execute locally
-func Local(command string, workingDir string, capture bool) (string, error) {
+func Local(command string, workingDir string, capture bool, env ...string) (string, error) {
 	split := strings.Split(command, " ")
 
 	cmd := exec.Command(split[0:1][0], split[1:]...)
 	cmd.Dir = workingDir
+	cmd.Env = env
 	var o, e bytes.Buffer
 	cmd.Stdout = &o
 	cmd.Stderr = &e

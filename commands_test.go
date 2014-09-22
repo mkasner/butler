@@ -3,9 +3,11 @@ package butler
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/wsxiaoys/terminal/color"
@@ -57,6 +59,43 @@ func TestLocalListDirectoryFail(t *testing.T) {
 		}
 		equals(t, "", result)
 		// t.Log(result)
+		// fmt.Println(fmt.Sprintf("%s", result))
+	}
+
+}
+
+func TestRsync(t *testing.T) {
+
+	commands := []string{"rsync -az -e \"ssh -p 2200\" /home/kmislav/Projects/dplr/ vagrant@127.0.0.1:/home/vagrant/apps/dplr/dev/master/"}
+
+	for _, c := range commands {
+		// t.Log(c)
+		result, err := Local(c, "/home/kmislav/tmp", true)
+		t.Log(result)
+		if err != nil {
+			t.Errorf(color.Sprintf("@r%v\n", err))
+		}
+		equals(t, "", result)
+		// fmt.Println(fmt.Sprintf("%s", result))
+	}
+
+}
+
+func TestRsyncManual(t *testing.T) {
+
+	commands := []string{`rsync -az /home/kmislav/Projects/dplr/ vagrant@127.0.0.1:/home/vagrant/apps/dplr/dev/master/`}
+
+	for _, c := range commands {
+		split := strings.Split(c, " ")
+
+		cmd := exec.Command(split[0:1][0], split[1:]...)
+		cmd.Env = []string{"RSYNC_RSH=ssh -p 2200"}
+		result, err := cmd.CombinedOutput()
+		t.Log(string(result))
+		if err != nil {
+			t.Errorf(color.Sprintf("@r%v\n", err))
+		}
+		equals(t, "", string(result))
 		// fmt.Println(fmt.Sprintf("%s", result))
 	}
 
